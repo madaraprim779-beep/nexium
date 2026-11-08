@@ -1,0 +1,286 @@
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'DM Sans', sans-serif;
+  color: #f8f7fc;
+  background: #09090d;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-optical-sizing: auto;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 50% 0%, #241342 0%, transparent 48%),
+    #09090d;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.auth-screen,
+.app-screen,
+.loading-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 38px;
+  border: 1px solid #30243f;
+  border-radius: 25px;
+  background: rgba(17, 15, 23, 0.96);
+  box-shadow: 0 25px 100px #0009;
+}
+
+.brand-symbol {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 17px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, #a855f7, #6525c9);
+  color: white;
+  font-size: 28px;
+  font-weight: 800;
+  box-shadow: 0 8px 35px #8b36e855;
+}
+
+.brand {
+  text-align: center;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+
+.brand span {
+  color: #a855f7;
+}
+
+.tagline,
+.eyebrow {
+  color: #a78bfa;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+
+.auth-heading {
+  margin: 34px 0 23px;
+}
+
+.auth-heading h1,
+.welcome-panel h1 {
+  margin: 0 0 9px;
+  font-size: 28px;
+  text-align: center;
+}
+
+.auth-heading p,
+.welcome-panel > p {
+  color: #a7a2b2;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 24px;
+  border-radius: 12px;
+  background: #0c0b11;
+}
+
+.auth-tabs button {
+  border: 0;
+  border-radius: 9px;
+  padding: 12px;
+  background: transparent;
+  color: #9992a5;
+  font-weight: 600;
+}
+
+.auth-tabs button.active {
+  background: #302044;
+  color: white;
+}
+
+form label {
+  display: block;
+  margin-bottom: 17px;
+  color: #d9d4e1;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+form input {
+  display: block;
+  width: 100%;
+  margin-top: 9px;
+  padding: 15px;
+  border: 1px solid #332c3d;
+  border-radius: 11px;
+  outline: none;
+  background: #0c0b11;
+  color: white;
+  transition: border-color 0.2s;
+}
+
+form input:focus {
+  border-color: #a855f7;
+}
+
+form input::placeholder {
+  color: #696274;
+}
+
+.primary-button,
+.google-button {
+  width: 100%;
+  min-height: 49px;
+  border-radius: 11px;
+  font-weight: 700;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.primary-button {
+  margin-top: 8px;
+  border: 0;
+  background: linear-gradient(100deg, #9333ea, #6d28d9);
+  color: white;
+}
+
+.google-button {
+  border: 1px solid #3b3445;
+  background: #17141e;
+  color: white;
+}
+
+.primary-button:disabled,
+.google-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.primary-button:not(:disabled):active,
+.google-button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.separator {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 23px 0;
+  color: #777080;
+  font-size: 10px;
+}
+
+.separator::before,
+.separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #302a38;
+}
+
+.feedback {
+  padding: 12px;
+  margin-top: 17px;
+  border: 1px solid #553b70;
+  border-radius: 10px;
+  background: #251632;
+  color: #e9d5ff;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.legal-note {
+  margin: 24px 0 0;
+  color: #777080;
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.loading-screen {
+  color: #c084fc;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: 5px;
+}
+
+.app-screen {
+  display: block;
+  padding: 0;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 6%;
+  border-bottom: 1px solid #292331;
+}
+
+.topbar .brand {
+  font-size: 23px;
+}
+
+.logout-button {
+  padding: 10px 15px;
+  border: 1px solid #49345f;
+  border-radius: 9px;
+  background: #20172c;
+  color: white;
+}
+
+.welcome-panel {
+  max-width: 550px;
+  margin: 100px auto;
+  padding: 25px;
+}
+
+.account-email {
+  color: #c084fc !important;
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .auth-screen {
+    padding: 14px;
+  }
+
+  .auth-card {
+    padding: 26px 20px;
+  }
+
+  .auth-heading h1 {
+    font-size: 25px;
+  }
+}
