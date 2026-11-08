@@ -1,65 +1,88 @@
 
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import {
-  MessageCircle,
-  Mail,
-  Lock,
-  User,
-  LogOut,
-  ShieldCheck
-} from "lucide-react";
-import { supabase } from "./lib/supabase";
-
-type AuthMode = "login" | "register";
+import { useEffect, useState, type FormEvent } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './lib/supabase';
 
 export default function App() {
-  const [mode, setMode] = useState<AuthMode>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [message, setMessage] = useState("");
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<'login' | 'register'>('register');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+
+  function showMessage(text: string, type: 'success' | 'error') {
+    setMessage(text);
+    setMessageType(type);
+  }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+
+      if (error) {
+        showMessage(error.message, 'error');
+      }
+
+      setSession(data.session);
+      setLoading(false);
+    }).catch(() => {
+      if (mounted) {
+        showMessage('Impossible de contacter Supabase.', 'error');
+        setLoading(false);
+      }
     });
 
-    const { data } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        if (mounted) setSession(newSession);
       }
     );
 
-    return () => data.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage("");
 
-    if (!email.trim() || password.length < 8) {
-      setMessage("Vérifie ton adresse e-mail et ton mot de passe (8 caractères minimum).");
-      return;
-    }
+    if (busy) return;
 
-    if (mode === "register" && !/^[a-zA-Z0-9_]{3,24}$/.test(username)) {
-      setMessage("Le pseudo doit contenir 3 à 24 lettres, chiffres ou underscores.");
-      return;
-    }
-
-    setLoading(true);
+    setBusy(true);
+    setMessage('');
 
     try {
-      if (mode === "register") {
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanUsername = username.trim();
+
+      if (!cleanEmail || !password) {
+        throw new Error('Remplis ton adresse e-mail et ton mot de passe.');
+      }
+
+      if (password.length < 8) {
+        throw new Error('Le mot de passe doit contenir au moins 8 caractères.');
+      }
+
+      if (mode === 'register') {
+        if (cleanUsername.length < 3 || cleanUsername.length > 24) {
+          throw new Error('Le pseudo doit contenir entre 3 et 24 caractères.');
+        }
+
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: cleanEmail,
           password,
           options: {
+            emailRedirectTo: window.location.origin,
             data: {
-              username: username.trim()
+              username: cleanUsername,
+              display_name: cleanUsername
             }
           }
         });
@@ -67,123 +90,145 @@ export default function App() {
         if (error) throw error;
 
         if (data.session) {
-          setMessage("Compte créé avec succès.");
+          setSession(data.session);
+          showMessage('Ton compte NEXIUM est créé !', 'success');
+        } else if (data.user) {
+          showMessage(
+            'Inscription enregistrée ! Consulte ta boîte e-mail pour confirmer ton adresse avant de te connecter.',
+            'success'
+          );
         } else {
-          setMessage("Compte créé. Vérifie ta boîte mail pour confirmer ton adresse.");
+          showMessage(
+            'Aucune confirmation reçue. Réessaie dans quelques instants.',
+            'error'
+          );
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
           password
         });
 
         if (error) throw error;
+
+        setSession(data.session);
+        showMessage('Connexion réussie.', 'success');
       }
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Une erreur est survenue."
-      );
+      console.error('Erreur NEXIUM Auth:', error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : 'Une erreur inconnue est survenue.';
+
+      showMessage(errorMessage, 'error');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
-  async function handleGoogle() {
-    setLoading(true);
-    setMessage("");
+  async function handleGoogleLogin() {
+    if (busy) return;
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin
-      }
-    });
+    setBusy(true);
+    setMessage('');
 
-    if (error) {
-      setMessage(error.message);
-      setLoading(false);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      showMessage(
+        error instanceof Error ? error.message : 'Connexion Google impossible.',
+        'error'
+      );
+      setBusy(false);
     }
   }
 
   async function handleLogout() {
+    setBusy(true);
+
     const { error } = await supabase.auth.signOut();
 
-    if (error) setMessage(error.message);
+    if (error) {
+      showMessage(error.message, 'error');
+    } else {
+      setSession(null);
+      showMessage('Déconnexion réussie.', 'success');
+    }
+
+    setBusy(false);
   }
 
-  if (user) {
-    const displayName =
-      user.user_metadata?.username ||
-      user.user_metadata?.full_name ||
-      user.email;
+  if (loading) {
+    return <main className="loading-screen">NEXIUM</main>;
+  }
 
+  if (session) {
     return (
-      <main className="app-shell">
+      <main className="app-screen">
         <header className="topbar">
-          <div className="brand">
-            <span className="brand-icon">N</span>
-            <span>NEXIUM</span>
-          </div>
-          <button className="logout-button" onClick={handleLogout}>
-            <LogOut size={18} />
+          <div className="brand">NEXIUM<span>.</span></div>
+          <button
+            className="logout-button"
+            onClick={handleLogout}
+            disabled={busy}
+          >
             Déconnexion
           </button>
         </header>
 
         <section className="welcome-panel">
-          <div className="welcome-icon">
-            <MessageCircle size={42} />
-          </div>
+          <div className="brand-symbol">N</div>
           <p className="eyebrow">CONNECTÉ AU MONDE</p>
-          <h1>Bienvenue sur NEXIUM</h1>
-          <p className="welcome-text">
-            Ton compte est connecté. Ton espace de communication
-            sera construit dans les prochaines étapes.
-          </p>
-          <div className="account-card">
-            <ShieldCheck size={22} />
-            <div>
-              <strong>{displayName}</strong>
-              <span>{user.email}</span>
-            </div>
-          </div>
-          {message && <p className="notice">{message}</p>}
+          <h1>Bienvenue sur NEXIUM.</h1>
+          <p>Ton compte est connecté.</p>
+          <p className="account-email">{session.user.email}</p>
+          {message && <p className="feedback">{message}</p>}
         </section>
       </main>
     );
   }
 
   return (
-    <main className="auth-page">
+    <main className="auth-screen">
       <section className="auth-card">
-        <div className="brand auth-brand">
-          <span className="brand-icon">N</span>
-          <span>NEXIUM</span>
-        </div>
+        <div className="brand-symbol">N</div>
+        <div className="brand">NEXIUM<span>.</span></div>
+        <p className="tagline">CONNECTÉ AU MONDE.</p>
 
-        <p className="eyebrow">CONNECTÉ AU MONDE</p>
-        <h1>{mode === "login" ? "Bon retour." : "Créer un compte."}</h1>
-        <p className="subtitle">
-          {mode === "login"
-            ? "Connecte-toi à ton espace NEXIUM."
-            : "Rejoins ton nouvel espace de communication."}
-        </p>
+        <div className="auth-heading">
+          <h1>{mode === 'login' ? 'Bon retour.' : 'Rejoins NEXIUM.'}</h1>
+          <p>
+            {mode === 'login'
+              ? 'Connecte-toi à ton compte.'
+              : 'Crée ton compte et entre dans la communauté.'}
+          </p>
+        </div>
 
         <div className="auth-tabs">
           <button
-            className={mode === "login" ? "active" : ""}
+            type="button"
+            className={mode === 'login' ? 'active' : ''}
             onClick={() => {
-              setMode("login");
-              setMessage("");
+              setMode('login');
+              setMessage('');
             }}
           >
             Connexion
           </button>
+
           <button
-            className={mode === "register" ? "active" : ""}
+            type="button"
+            className={mode === 'register' ? 'active' : ''}
             onClick={() => {
-              setMode("register");
-              setMessage("");
+              setMode('register');
+              setMessage('');
             }}
           >
             Inscription
@@ -191,87 +236,82 @@ export default function App() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {mode === "register" && (
-            <label className="field">
-              <span>Pseudo</span>
-              <div className="input-wrap">
-                <User size={19} />
-                <input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Ton pseudo"
-                  minLength={3}
-                  maxLength={24}
-                  autoComplete="username"
-                  required
-                />
-              </div>
+          {mode === 'register' && (
+            <label>
+              Pseudo
+              <input
+                type="text"
+                placeholder="Ton pseudo"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                minLength={3}
+                maxLength={24}
+                pattern="[A-Za-z0-9_]+"
+                required
+              />
             </label>
           )}
 
-          <label className="field">
-            <span>Adresse e-mail</span>
-            <div className="input-wrap">
-              <Mail size={19} />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="exemple@gmail.com"
-                autoComplete="email"
-                required
-              />
-            </div>
+          <label>
+            Adresse e-mail
+            <input
+              type="email"
+              placeholder="exemple@gmail.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              required
+            />
           </label>
 
-          <label className="field">
-            <span>Mot de passe</span>
-            <div className="input-wrap">
-              <Lock size={19} />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="8 caractères minimum"
-                minLength={8}
-                autoComplete={
-                  mode === "login" ? "current-password" : "new-password"
-                }
-                required
-              />
-            </div>
+          <label>
+            Mot de passe
+            <input
+              type="password"
+              placeholder="8 caractères minimum"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              minLength={8}
+              required
+            />
           </label>
 
-          <button className="primary-button" disabled={loading}>
-            {loading
-              ? "Chargement..."
-              : mode === "login"
-                ? "Se connecter"
-                : "Créer mon compte"}
+          <button className="primary-button" type="submit" disabled={busy}>
+            {busy
+              ? 'Traitement en cours...'
+              : mode === 'login'
+                ? 'Se connecter'
+                : 'Créer mon compte'}
           </button>
         </form>
 
-        <div className="separator">
-          <span>OU</span>
-        </div>
+        <div className="separator"><span>OU</span></div>
 
         <button
           className="google-button"
-          onClick={handleGoogle}
-          disabled={loading}
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={busy}
         >
-          <span className="google-letter">G</span>
           Continuer avec Google
         </button>
 
         {message && (
-          <div className="notice" role="status">
+          <p
+            className="feedback"
+            role="status"
+            style={{
+              borderColor: messageType === 'error' ? '#a33b55' : '#553b70',
+              background: messageType === 'error' ? '#351923' : '#251632'
+            }}
+          >
             {message}
-          </div>
+          </p>
         )}
 
-        <p className="legal">
-          En continuant, tu acceptes les règles et les conditions
+        <p className="legal-note">
+          En continuant, tu acceptes les règles et conditions
           d'utilisation de NEXIUM.
         </p>
       </section>
